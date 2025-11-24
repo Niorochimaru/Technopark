@@ -1,0 +1,166 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+import time
+
+# Путь к профилю Chrome
+user_data_dir = "C:/Users/user/AppData/Local/Google/Chrome/User Data"
+
+# Настройка опций Chrome
+options = webdriver.ChromeOptions()
+options.add_argument(f"user-data-dir={user_data_dir}")  # Использование реального профиля
+
+# Инициализация драйвера
+driver = webdriver.Chrome(service=Service(), options=options)
+
+nav_item = 'Компьютеры и ноутбуки'
+menu_link = 'Неттопы'
+
+try:
+    # 1. Открыть сайт
+    driver.get("https://spb.technopark.ru/")
+    print("Открыт сайт spb.technopark.ru")
+
+    # 2. Дождаться появления кнопки "Каталог" и нажать на неё
+    wait = WebDriverWait(driver, 10)
+    catalog_button = wait.until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'header-catalog-button')]"))
+    )
+    catalog_button.click()
+    print("Нажата кнопка 'Каталог'")
+
+    # 3. Навести курсор на элемент
+    gadgets_text_div = wait.until(
+        EC.visibility_of_element_located((By.XPATH, f"//div[contains(@class, 'catalog-menu__nav-link__text') and contains(text(), '{nav_item}')]"))
+    )
+    actions = ActionChains(driver)
+    actions.move_to_element(gadgets_text_div).perform()
+    print(f"Курсор наведён на элемент {nav_item}")
+
+    # 4. Нажать на ссылку
+    smartphones_link = wait.until(
+        EC.element_to_be_clickable((By.XPATH, f"//a[contains(@class, 'catalog-menu-links__link') and contains(text(), '{menu_link}')]"))
+    )
+    smartphones_link.click()
+    print(f"Нажата ссылка {menu_link}")
+
+    # 5. Дождаться загрузки карточек товаров
+    product_cards = wait.until(
+        EC.presence_of_all_elements_located((By.XPATH, "//article[contains(@class, 'product-card')]"))
+    )
+    print(f"Найдено {len(product_cards)} карточек товаров")
+
+    if len(product_cards) < 3:
+        raise Exception("Недостаточно карточек товаров для добавления в сравнение")
+
+    # 6. Выбрать первые 3 карточки и нажать кнопку "Добавить к сравнению"
+    selected_cards = product_cards[:3]
+
+    for i, card in enumerate(selected_cards, start=1):
+        # Прокрутить страницу к карточке
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", card)
+        print(f"Карточка {i} прокручена в центр экрана")
+
+        # Найти кнопку "Добавить к сравнению"
+        try:
+            compare_button = card.find_element(By.XPATH, ".//button[contains(@class, 'add-to-compare-button') and contains(@title, 'Сравнить')]")
+            print(f"Найдена кнопка 'Добавить к сравнению' для карточки {i}")
+            compare_button.click()
+            print(f"Кнопка 'Добавить к сравнению' для карточки {i} нажата")
+        except Exception as e:
+            print(f"Не удалось найти или нажать кнопку 'Добавить к сравнению' для карточки {i}: {e}")
+            continue
+
+    # 7. Проверить, что индикатор сравнения изменился на цифру "3"
+    time.sleep(2)
+
+    try:
+        compare_indicator_count = wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//span[contains(@class, 'navigation-indicator__badge-desktop')]"))
+        )
+        indicator_text = compare_indicator_count.text.strip()
+
+        assert indicator_text == "3", f"Значение индикатора сравнения ({indicator_text}) не соответствует ожидаемому (3)"
+        print("Индикатор сравнения успешно изменился на цифру 3")
+    except Exception as e:
+        print(f"Ошибка при проверке индикатора избранного: {e}")
+
+    # 7. Дождаться появления индикатора сравнения
+    compare_indicator = wait.until(
+        EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/personal/compare/') and contains(@class, 'header-main-new__indicator')]"))
+    )
+    print("Индикатор сравнения найден")
+
+    # 8. Кликнуть по индикатору сравнения
+    compare_indicator.click()
+    print("Переход на страницу сравнения выполнен")
+
+    # 9. Проверить, что мы находимся на странице сравнения
+    assert "/personal/compare/" in driver.current_url, "Не удалось перейти на страницу сравнения"
+    print("Успешно перешли на страницу сравнения")
+
+    # 10. Найти элемент с текстом вида "1 / 3" для проверки количества товаров
+    compare_counter = wait.until(
+        EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'product-card-compare__indicator')]"))
+    )
+    compare_text = compare_counter.text.strip()
+
+    # 11. Извлечь количество товаров из текста (например, "1 / 3")
+    try:
+        # Разделяем текст по символу "/" и берем вторую часть
+        total = int(compare_text.split("/")[-1].strip())
+
+    except ValueError:
+        raise Exception("Не удалось извлечь количество товаров из текста индикатора")
+
+    # 12. Проверить, что добавлено ровно 3 товара
+    assert total == 3, f"Количество товаров на странице сравнения ({total}) не соответствует ожидаемому (3)"
+    print("Успешно добавлено 3 товара")
+
+    # 13. Найти все кнопки "Убрать" на странице сравнения
+    remove_buttons = wait.until(
+        EC.presence_of_all_elements_located((By.XPATH, "//span[contains(@class, 'tp-button-new__content') and contains(text(), 'Убрать')]"))
+    )
+    print(f"Найдено {len(remove_buttons)} кнопок 'Убрать'")
+
+    # 14. Удалить каждый товар из сравнения
+    for i, button in enumerate(remove_buttons, start=1):
+        try:
+            button.click()
+            print(f"Товар {i} успешно удален из сравнения")
+        except Exception as e:
+            print(f"Не удалось удалить товар {i} из сравнения: {e}")
+
+    # 15. Проверить, что список сравнения пуст
+    try:
+        # Поиск элемента с текстом "Вы ещё ничего не добавили для сравнения."
+        empty_favorites_message = wait.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'tp-typography') and contains(text(), 'Вы ещё ничего не добавили для сравнения.')]"
+            ))
+        )
+        print("Список сравнения пуст: все товары успешно удалены")
+    except Exception as e:
+        print(f"Ошибка при проверке пустого списка сравнения: {e}")
+
+    # # 15. Проверить, что список товаров пуст
+    # try:
+    #     wait.until(
+    #         EC.invisibility_of_element_located((By.XPATH, "//div[contains(@class, 'compare-product')]"))
+    #     )
+    #     print("Все товары успешно удалены из сравнения")
+    # except Exception as e:
+    #     print(f"Ошибка при проверке удаления товаров: {e}")
+
+# except Exception as e:
+#     print(f"Произошла ошибка: {e}")
+
+finally:
+    # Закрыть браузер после выполнения теста
+    driver.quit()
+    print("Браузер закрыт")
