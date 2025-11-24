@@ -1,0 +1,76 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+# Путь к профилю Chrome
+user_data_dir = "C:/Users/user/AppData/Local/Google/Chrome/User Data"
+
+# Настройка опций Chrome
+options = webdriver.ChromeOptions()
+options.add_argument(f"user-data-dir={user_data_dir}")  # Использование реального профиля
+
+# Инициализация драйвера
+driver = webdriver.Chrome(service=Service(), options=options)
+
+text = 'Смартфон'
+
+try:
+    # 1. Открыть сайт
+    driver.get("https://spb.technopark.ru/")
+    print("Открыт сайт spb.technopark.ru")
+
+    # 2. Дождаться появления элемента строки поиска
+    wait = WebDriverWait(driver, 5)
+    search_input = wait.until(EC.visibility_of_element_located((By.XPATH, "//input[contains(@class, 'header-search-input__input')]")))
+    print("Элемент строки поиска найден с помощью XPath")
+
+    # 3. Ввести текст в строку поиска
+    search_input.send_keys(f"{text}")
+    print(f"Текст {text} введен в строку поиска")
+
+    # 4. Подтвердить поиск (эмулировать нажатие Enter)
+    search_input.send_keys(Keys.RETURN)
+    print("Поиск выполнен")
+
+    # 5. Проверить, есть ли сообщение об отсутствии результатов
+    try:
+        no_results_message = wait.until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'tp-typography') and contains(text(), 'Мы ничего не нашли')]"))
+        )
+        print("Результаты поиска отсутствуют. Сообщение: Мы ничего не нашли")
+        raise Exception("Поиск не дал результатов")  # Завершаем выполнение программы
+
+    except TimeoutException:
+        # Если сообщение об отсутствии результатов не найдено, продолжаем выполнение
+        pass
+
+    # 6. Дождаться загрузки заголовка результатов поиска
+    try:
+        # Проверяем наличие заголовка с текстом запроса
+        search_title = wait.until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'search-page-title__heading')]")))
+
+        # Получаем только текст заголовка
+        search_title_text = driver.execute_script("""
+            return arguments[0].childNodes[0].nodeValue.trim();
+        """, search_title)
+        print(f"Заголовок результатов: {search_title_text}")
+
+        # Проверяем наличие количества найденных товаров
+        search_count = wait.until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'search-page-title__count')]")))
+        print(f"Количество найденных товаров: {search_count.text}")
+
+    except TimeoutException:
+        print("Заголовок или количество товаров не найдены")
+        raise
+
+finally:
+    # Закрыть браузер после выполнения теста
+    driver.quit()
+    print("Браузер закрыт")
+
