@@ -1,0 +1,77 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+import time
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+
+# Укажите путь к профилю Chrome
+user_data_dir = "C:/Users/Kto-to/AppData/Local/Google/Chrome/User Data"
+
+# Настройка опций Chrome
+options = webdriver.ChromeOptions()
+options.add_argument(f"user-data-dir={user_data_dir}")  # Использование реального профиля
+
+# Инициализация драйвера
+driver = webdriver.Chrome(service=Service(), options=options)
+
+
+
+try:
+    # Открытие сайта
+    driver.get("https://spb.technopark.ru/")
+
+    # Ожидание загрузки страницы
+    time.sleep(20)  # Увеличьте время, если сайт медленно загружается
+    title_text = driver.title
+    # Проверка заголовка страницы
+    assert title_text=="Технопарк – интернет-магазин бытовой техники в Санкт-Петербурге", f"Неверное сообщение: {title_text}"
+    print("Сообщение:", {title_text}, "отобразилось!")
+
+
+    time.sleep(2)
+    print("Клик по пункту меню Магазины")
+    mag = driver.find_element(By.XPATH, "//nav[@class='header-top-bar__nav']//a[1]").click()
+    print("Осуществлён переход на страницу Магазины")
+    time.sleep(2)
+    print("Клик по логотипу для возврата на главную страницу")
+    start1 = driver.find_element(By.XPATH, "//div[@class='page-container header-main-new__container']//a[1]").click()
+    print("Осуществлён переход на главную страницу сайта")
+    time.sleep(2)
+    print("Клик по пункту меню Техно.Блог")
+    blog = driver.find_element(By.XPATH, "//nav[@class='header-top-bar__nav']//a[2]").click()
+    print("Осуществлён переход на страницу Техно.Блог")
+    time.sleep(2)
+    print("Клик по логотипу для возврата на главную страницу")
+    start2 = driver.find_element(By.XPATH, "//div[@class='page-container header-main-new__container']//a[1]").click()
+    print("Осуществлён переход на главную страницу сайта")
+    time.sleep(2)
+    print("Клик по пункту меню Для бизнеса")
+    biznes = driver.find_element(By.XPATH, "//nav[@class='header-top-bar__nav']//a[3]").click()
+    print("Осуществлён переход на страницу Для бизнеса")
+    time.sleep(2)
+    print("Клик по логотипу для возврата на главную страницу")
+    start3 = driver.find_element(By.XPATH, "//div[@class='page-container header-main-new__container']//a[1]").click()
+    print("Осуществлён переход на главную страницу сайта")
+    time.sleep(2)
+    print("Клик по пункту меню Где мой заказ?")
+    zakaz = driver.find_element(By.XPATH, "//nav[@class='header-top-bar__nav']//a[4]").click()
+    print("Отобразилась форма для заполнения Проверить статус заказа")
+    time.sleep(2)
+    print("Клик на крестик формы для её закрытия")
+    vixod = driver.find_element(By.XPATH, "//button[@class='tp-cross-button tp-cross-button--color-gray tp-cross-button--size-medium tp-modal-card__close-btn tp-modal-card__close-btn--position-right']").click()
+    print("Форма закрыта")
+    time.sleep(1)
+    print("Клик по пункту меню Обратная связь")
+    svaz = driver.find_element(By.XPATH, "//nav[@class='header-top-bar__nav']//a[5]").click()
+    print("Отобразилась форма для заполнения Обратная связь")
+    time.sleep(2)
+    print("Клик на крестик формы для её закрытия")
+    vixod = driver.find_element(By.XPATH, "//button[@class='tp-cross-button tp-cross-button--color-gray "
+                                          "tp-cross-button--size-medium tp-modal-card__close-btn tp-modal-card__close-btn--next-to-header tp-modal-card__close-btn--position-right']").click()
+    print("Форма закрыта")
+    time.sleep(2)
+
+finally:
+    print("Конец теста")
+    # Закрытие браузера
+    driver.quit()
