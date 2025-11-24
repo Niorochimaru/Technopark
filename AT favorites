@@ -1,0 +1,163 @@
+from time import sleep
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+import time
+
+# Путь к профилю Chrome
+user_data_dir = "C:/Users/user/AppData/Local/Google/Chrome/User Data"
+
+# Настройка опций Chrome
+options = webdriver.ChromeOptions()
+options.add_argument(f"user-data-dir={user_data_dir}")  # Использование реального профиля
+
+# Инициализация драйвера
+driver = webdriver.Chrome(service=Service(), options=options)
+
+nav_item = 'Компьютеры и ноутбуки'
+menu_link = 'Неттопы'
+
+try:
+    # 1. Открыть сайт
+    driver.get("https://spb.technopark.ru/")
+    print("Открыт сайт spb.technopark.ru")
+
+    # 2. Дождаться появления кнопки "Каталог" и нажать на неё
+    wait = WebDriverWait(driver, 10)
+    catalog_button = wait.until(
+        EC.element_to_be_clickable((By.XPATH, "//div[contains(@class, 'header-catalog-button')]"))
+    )
+    catalog_button.click()
+    print("Нажата кнопка 'Каталог'")
+
+    # 3. Навести курсор на элемент
+    gadgets_text_div = wait.until(
+        EC.visibility_of_element_located((By.XPATH, f"//div[contains(@class, 'catalog-menu__nav-link__text') and contains(text(), '{nav_item}')]"))
+    )
+    actions = ActionChains(driver)
+    actions.move_to_element(gadgets_text_div).perform()
+    print(f"Курсор наведён на элемент {nav_item}")
+
+    # 4. Нажать на ссылку
+    smartphones_link = wait.until(
+        EC.element_to_be_clickable((By.XPATH, f"//a[contains(@class, 'catalog-menu-links__link') and contains(text(), '{menu_link}')]"))
+    )
+    smartphones_link.click()
+    print(f"Нажата ссылка {menu_link}")
+
+    # 5. Дождаться загрузки карточек товаров
+    product_cards = wait.until(
+        EC.presence_of_all_elements_located((By.XPATH, "//article[contains(@class, 'product-card')]"))
+    )
+    print(f"Найдено {len(product_cards)} карточек товаров")
+
+    if len(product_cards) < 3:
+        raise Exception("Недостаточно карточек товаров для добавления в избранное")
+
+    # 6. Выбрать первые 3 карточки и нажать кнопку "Добавить в избранное"
+    selected_cards = product_cards[:3]
+
+    for i, card in enumerate(selected_cards, start=1):
+        # Прокрутить страницу к карточке
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", card)
+        print(f"Карточка {i} прокручена в центр экрана")
+
+        # Найти кнопку "Добавить в избранное"
+        try:
+            favorite_button = card.find_element(By.XPATH, ".//button[contains(@class, 'add-to-favorites-button')]")
+            print(f"Найдена кнопка 'Добавить в избранное' для карточки {i}")
+            favorite_button.click()
+            print(f"Кнопка 'Добавить в избранное' для карточки {i} нажата")
+        except Exception as e:
+            print(f"Не удалось найти или нажать кнопку 'Добавить в избранное' для карточки {i}: {e}")
+            continue
+
+    # 7. Проверить, что индикатор избранного изменился на цифру "3"
+    time.sleep(2)
+
+    try:
+        favorites_indicator = wait.until(
+            EC.presence_of_element_located((By.XPATH, "//span[contains(@class, 'navigation-indicator__badge-desktop')]"))
+        )
+        indicator_text = favorites_indicator.text.strip()
+
+        assert indicator_text == "3", f"Значение индикатора избранного ({indicator_text}) не соответствует ожидаемому (3)"
+        print("Индикатор избранного успешно изменился на цифру 3")
+    except Exception as e:
+        print(f"Ошибка при проверке индикатора избранного: {e}")
+
+    # 8. Перейти на страницу избранного
+    try:
+        favorites_link = wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//a[contains(@href, '/personal/favorites/') and contains(@data-test-id, 'header-indicator__favorite')]"))
+        )
+        favorites_link.click()
+        print("Переход на страницу избранного выполнен")
+    except Exception as e:
+        print(f"Не удалось перейти на страницу избранного: {e}")
+
+    # 9. Проверить количество товаров в избранном
+    try:
+        favorites_count_badge = wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//span[contains(@class, 'tp-badge') and contains(@class, 'tp-badge--color-blue')]"))
+        )
+        favorites_count = favorites_count_badge.text.strip()
+
+        assert favorites_count == "3", f"Количество товаров в избранном ({favorites_count}) не соответствует ожидаемому (3)"
+        print("Успешно добавлено 3 товара в избранное")
+    except Exception as e:
+        print(f"Ошибка при проверке количества товаров в избранном: {e}")
+
+
+    # 10. Удалить все товары из избранного
+    try:
+        # Найти все активные кнопки "В избранное"
+        remove_buttons = wait.until(
+            EC.presence_of_all_elements_located((
+                By.XPATH,
+                "//button[contains(@class, 'add-to-favorites-button') and contains(@class, 'add-to-favorites-button--active')]"
+            ))
+        )
+        print(f"Найдено {len(remove_buttons)} активных кнопок 'В избранное' для удаления")
+
+        for i, button in enumerate(remove_buttons, start=1):
+            try:
+                # Прокрутить элемент в видимую область
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", button)
+
+                # Выполнить клик через JavaScript
+                button.click()
+                print(f"Товар {i} успешно удален из избранного")
+
+                # Подождать, пока элемент исчезнет
+                wait.until(EC.staleness_of(button))
+            except Exception as e:
+                print(f"Не удалось удалить товар {i} из избранного: {e}")
+    except Exception as e:
+        print(f"Ошибка при удалении товаров из избранного: {e}")
+
+    # 11. Проверить, что список избранного пуст
+    try:
+        # Поиск элемента с текстом "Вы ещё ничего не добавили в избранное"
+        empty_favorites_message = wait.until(
+            EC.presence_of_element_located((
+                By.XPATH,
+                "//div[contains(@class, 'tp-typography') and contains(text(), 'Вы ещё ничего не добавили в избранное')]"
+            ))
+        )
+        print("Список избранного пуст: все товары успешно удалены")
+    except Exception as e:
+        print(f"Ошибка при проверке пустого списка избранного: {e}")
+
+# except Exception as e:
+#     print(f"Произошла ошибка: {e}")
+
+finally:
+    # Закрыть браузер после выполнения теста
+    driver.quit()
+    print("Браузер закрыт")
+
